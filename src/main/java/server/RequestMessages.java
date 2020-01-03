@@ -2,6 +2,7 @@ package server;
 
 public enum RequestMessages {
     LOGIN("LOGIN"),
+    LOGOUT("LOGOUT"),
     ADD_FRIEND("ADD_FRIEND"),
     SHOW_FRIENDS("SHOW_FRIENDS"),
     SHOW_RANKS("SHOW_RANKS"),
@@ -14,6 +15,8 @@ public enum RequestMessages {
     }
 
     public static String[] parseRequestMessage(String request) {
+        assert request != null : "richiesta nulla";
+
         return request.split(" ");
     }
 }

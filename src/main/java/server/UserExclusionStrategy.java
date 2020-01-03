@@ -8,7 +8,8 @@ public class UserExclusionStrategy implements ExclusionStrategy {
     public boolean shouldSkipField(FieldAttributes fieldAttributes) {
         return (fieldAttributes.getDeclaringClass() == User.class &&
                 (fieldAttributes.getName().equals("userInfoPath") ||
-                        fieldAttributes.getName().equals("friendlistPath")
+                        fieldAttributes.getName().equals("friendlistPath") ||
+                        fieldAttributes.getName().equals("online")
                 )
         );
     }

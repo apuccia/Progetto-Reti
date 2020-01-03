@@ -1,5 +1,6 @@
 package server;
 
+import java.util.Set;
 import java.util.TreeMap;
 
 public class Clique {
@@ -9,7 +10,16 @@ public class Clique {
     /**
      * Costruisce un nuovo oggetto Clique che rappresenta l'utente e le sue relazioni di amicizia.
      * @param user oggetto che rappresenta l'utente.
-     * @param friends struttura dati che contiene le amicizie dell'utente.
+     */
+    public Clique(User user) {
+        this.user = user;
+        this.friends = null;
+    }
+
+    /**
+     * Costruisce un nuovo oggetto Clique che rappresenta l'utente e le sue relazioni di amicizia.
+     * @param user oggetto che rappresenta l'utente.
+     * @param friends oggetto che contiene le amicizie dell'utente.
      */
     public Clique(User user, TreeMap<String, User> friends) {
         this.user = user;
@@ -29,35 +39,32 @@ public class Clique {
      * @param friend oggetto istanza della classe User che rappresenta l'utente da aggiungere nelle amicizie.
      */
     public void insertFriend(User friend) {
-        assert friend != null;
+        assert friend != null : "istanza nulla";
+        assert friend.getNickname() != null : "nickname dell'amico nullo";
+
+        if (friends == null) {
+            friends = new TreeMap<String, User>();
+        }
 
         friends.put(friend.getNickname(), friend);
     }
 
     /**
      * Metodo che restituisce un oggetto istanza della classe User contenente le informazioni dell'amico.
-     * @param nickname stringa contenente il nome dell'amico.
+     * @param friendNickname stringa contenente il nome dell'amico.
      * @return un oggetto istanza della classe User che rappresenta l'utente amico.
      */
-    public User getFriend(String nickname) {
-        assert nickname != null;
+    public User getFriend(String friendNickname) {
+        assert friendNickname != null : "nickname dell'amico nullo";
 
-        return friends.get(nickname);
+        return friends.get(friendNickname);
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
-
-        Clique clique = (Clique) o;
-        return user.equals(clique.user);
-    }
-
-    @Override
-    public int hashCode() {
-        return user.hashCode();
+    /**
+     * Metodo che restituisce gli amici dell'utente.
+     * @return TreeMap degli utenti amici.
+     */
+    public TreeMap<String, User> getFriends() {
+        return friends;
     }
 }

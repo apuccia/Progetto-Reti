@@ -27,5 +27,8 @@ public class MainClass {
         }
 
         TaskAcceptor taskAcceptor = new TaskAcceptor(serverChannel, serverSelector);
+        Thread acceptorThread = new Thread(taskAcceptor);
+
+        acceptorThread.start();
     }
 }
