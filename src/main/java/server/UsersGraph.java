@@ -1,32 +1,24 @@
 package server;
 
-import java.util.ArrayList;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class UsersGraph {
-    private TreeSet<User> usersTree;
-    private ConcurrentHashMap<String, ArrayList<User.UserInfo>> usersGraph;
+    private final ConcurrentHashMap<String, Clique> users; // struttura dati che contiene tutti gli utenti di Word Quizzle.
+    public final static String MAIN_PATH = "Progetto-Reti/clients" ;
 
     public UsersGraph() {
-        usersTree = new TreeSet<User>();
-        usersGraph = new ConcurrentHashMap<String, ArrayList<User.UserInfo>>();
+        users = new ConcurrentHashMap<String, Clique>();
     }
 
     public boolean existsUser(String nickname) {
-        return usersTree.contains(nickname);
+        return users.contains(nickname);
     }
 
-    public void insertUser(User user) {
-        usersTree.add(user);
-        usersGraph.put(user.getInfo().getNickname(), new ArrayList<User.UserInfo>());
+    public void insertClique(String nickname, Clique clique) {
+        users.put(nickname, clique);
     }
 
-    public User getUser(String nickname) {
-        return usersTree.get(nickname);
-    }
-
-    public void insertFriend(String userNickname, String friendNickname) {
-        usersGraph.get(userNickname).add(usersTree.);
+    public Clique getClique(String nickname) {
+        return users.get(nickname);
     }
 }

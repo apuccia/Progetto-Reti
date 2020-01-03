@@ -1,6 +1,6 @@
-#Progetto del corso di Reti di Calcolatori A.A. 2019/20
+# Progetto del corso di Reti di Calcolatori A.A. 2019/20
 
-##1. Descrizione del Problema
+## 1. Descrizione del Problema
 Il progetto consiste nell’implementazione di un sistema di sfide di traduzione italiano-inglese tra
 utenti registrati al servizio.  
 Gli utenti registrati possono sfidare i propri amici ad una gara il cui
@@ -8,7 +8,7 @@ scopo è quello di tradurre in inglese il maggiore numero di parole italiane pro
 inoltre la gestione di una rete sociale tra gli utenti iscritti.  
 L’applicazione è implementata secondo una architettura client server.
 
-##2. WQ: specifica delle operazioni
+## 2. WQ: specifica delle operazioni
 Di seguito sono specificate le operazioni offerte dal servizio WQ. In sede di implementazione è
 possibile aggiungere ulteriori parametri se necessario:
 
@@ -91,7 +91,7 @@ ottenuti in tutte le sfide che ha effettuato.
 a disposizione un'operazione mostra_classifica(nickUtente).  
 Il server restituisce in formato JSON la classifica calcolata in base ai **punteggi utente** ottenuti da nickUtente e dai suoi amici.
 
-##3. WQ: specifiche per l'implementazione
+## 3. WQ: specifiche per l'implementazione
 Nella realizzazione del progetto devono essere utilizzate molte tecnologie illustrate durante il
 corso. In particolare:
 * La fase di registrazione viene implementata mediante **RMI**.
@@ -117,7 +117,7 @@ comandi, presentati in un menu.
 * Il server persiste le informazioni di registrazione, relazioni di amicizia e punteggio degli
 utenti su file **JSON**.
 
-##Svolgimento del gioco
+## Svolgimento del gioco
 Di seguito un esempio di svolgimento del gioco. Il server invia una parola e l’utente risponde
 con la traduzione. Dopo la risposta l’utente riceve la parola successiva, così fino a che non
 risponde a tutte le parole oppure il tempo scade.
