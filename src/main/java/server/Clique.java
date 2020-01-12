@@ -1,52 +1,78 @@
 package server;
 
-import java.util.Set;
-import java.util.TreeMap;
+import org.mindrot.jbcrypt.BCrypt;
+
+import java.nio.channels.SelectionKey;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Clique {
-    private final User user; // oggetto che rappresenta l'utente.
-    private TreeMap<String, User> friends; // struttura dati che andrà a contenere le amicizie dell'utente.
+    transient private String userInfoPath; // path del file contenente le informazioni dell'utente.
+    transient private String userFriendlistPath; // path del file contenente le amicizie dell'utente.
+    transient private SelectionKey clientKey;
+
+    private final String hash; // risultato dell'hashing applicato alla password dell'utente.
+
+    private final Player playerInfo; // contiene le statistiche relative alle partite.
+    transient private ConcurrentHashMap<String, Player> friends; // struttura dati che andrà a contenere le amicizie dell'utente.
 
     /**
      * Costruisce un nuovo oggetto Clique che rappresenta l'utente e le sue relazioni di amicizia.
-     * @param user oggetto che rappresenta l'utente.
+     * @param nickname oggetto che rappresenta l'utente.
      */
-    public Clique(User user) {
-        this.user = user;
-        this.friends = null;
+    public Clique(String nickname, String password, String clientDirPath) {
+        assert nickname != null : "nickname nullo";
+        assert password != null : "password nulla";
+        assert clientDirPath != null : "path del client nullo";
+
+        // salvo i path dei file con le informazioni da persistere.
+        userInfoPath = clientDirPath + "/UserInfo.json";
+        userFriendlistPath = clientDirPath + "/UserFriendlist.json";
+
+        // genero e mantengo un hash a partire dalla password dell'utente.
+        hash = BCrypt.hashpw(password, BCrypt.gensalt());
+
+        friends = new ConcurrentHashMap<>();
+        playerInfo = new Player(nickname);
     }
 
     /**
      * Costruisce un nuovo oggetto Clique che rappresenta l'utente e le sue relazioni di amicizia.
-     * @param user oggetto che rappresenta l'utente.
-     * @param friends oggetto che contiene le amicizie dell'utente.
+     * @param nickname oggetto che rappresenta l'utente.
      */
-    public Clique(User user, TreeMap<String, User> friends) {
-        this.user = user;
-        this.friends = friends;
+    public Clique(String nickname, String hash, long userScore, long wins, long losses, float rateo) {
+        assert nickname != null : "nickname nullo";
+
+        this.hash = hash;
+        playerInfo = new Player(nickname, userScore, wins, losses, rateo);
+
+        friends = null;
     }
 
     /**
      * Metodo che restituisce l'oggetto che rappresenta l'utente.
-     * @return un oggetto istanza della classe User.
+     * @return un oggetto istanza della classe Player.
      */
-    public User getMainUser() {
-        return user;
+    public Player getPlayerInfo() {
+        return playerInfo;
+    }
+
+    public String getHash() {
+        return hash;
     }
 
     /**
      * Metodo che aggiunge un utente nella cerchia di amicizie.
      * @param friend oggetto istanza della classe User che rappresenta l'utente da aggiungere nelle amicizie.
      */
-    public void insertFriend(User friend) {
+    public Player insertFriend(Player friend) {
         assert friend != null : "istanza nulla";
         assert friend.getNickname() != null : "nickname dell'amico nullo";
 
         if (friends == null) {
-            friends = new TreeMap<String, User>();
+            friends = new ConcurrentHashMap<>();
         }
 
-        friends.put(friend.getNickname(), friend);
+        return friends.putIfAbsent(friend.getNickname(), friend);
     }
 
     /**
@@ -54,7 +80,7 @@ public class Clique {
      * @param friendNickname stringa contenente il nome dell'amico.
      * @return un oggetto istanza della classe User che rappresenta l'utente amico.
      */
-    public User getFriend(String friendNickname) {
+    public Player getFriend(String friendNickname) {
         assert friendNickname != null : "nickname dell'amico nullo";
 
         return friends.get(friendNickname);
@@ -64,7 +90,63 @@ public class Clique {
      * Metodo che restituisce gli amici dell'utente.
      * @return TreeMap degli utenti amici.
      */
-    public TreeMap<String, User> getFriends() {
+    public ConcurrentHashMap<String, Player> getFriends() {
         return friends;
+    }
+
+    /**
+     * Metodo che permette di inizializzare il path del file contenente le informazioni dell'utente.
+     * @param userInfoPath path del file contenente le informazioni dell'utente.
+     */
+    public void setUserInfoPath(String userInfoPath) {
+        assert this.userInfoPath == null : "path del file contenente le info utente già inizializzato";
+
+        this.userInfoPath = userInfoPath;
+    }
+
+    /**
+     * Metodo che restituisce il path del file contenente le informazioni dell'utente.
+     * @return un oggetto String che rappresenta il path del file contenente le informazioni dell'utente.
+     */
+    public String getUserInfoPath() {
+        assert userInfoPath != null : "userInfoPath nullo";
+
+        return userInfoPath;
+    }
+
+    /**
+     *  Metodo che permette di inizializzare il path del file contenente le amicizie dell'utente.
+     * @param userFriendlistPath path del file contenente le amicizie dell'utente.
+     */
+    public void setUserFriendlistPath(String userFriendlistPath) {
+        assert this.userFriendlistPath == null : "path del file contenente le amicizie utente già inizializzato";
+
+        this.userFriendlistPath = userFriendlistPath;
+    }
+
+    /**
+     * Metodo che restituisce il path del file contenente le amicizie dell'utente.
+     * @return un oggetto String che rappresenta il path del file contenente le amicizie dell'utente.
+     */
+    public String getUserFriendlistPath() {
+        assert userFriendlistPath != null : "path del file contenente le amicizie dell'utente nullo";
+
+        return userFriendlistPath;
+    }
+
+    /**
+     * Metodo che permette di associare la SelectionKey ad un utente.
+     * @param clientKey la SelectionKey da associare all'utente.
+     */
+    public void setClientKey(SelectionKey clientKey) {
+        this.clientKey = clientKey;
+    }
+
+    /**
+     * Metodo che ritorna la SelectionKey associata all'utente.
+     * @return la SelectionKey associata all'utente.
+     */
+    public SelectionKey getClientKey() {
+        return clientKey;
     }
 }

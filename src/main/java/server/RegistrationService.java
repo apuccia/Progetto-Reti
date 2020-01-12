@@ -1,18 +1,22 @@
 package server;
 
+import server.iotasks.WriteUserInfoTask;
+
 import java.io.*;
 import java.rmi.server.RemoteServer;
-import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
 
 public class RegistrationService extends RemoteServer implements IRegistrationService {
     private final UsersGraph usersGraph; // struttura dati contenente le informazioni degli utenti di Word Quizzle + informazioni di supporto.
+    private final ExecutorService diskOperator;
 
     /**
      * Costruisce un nuovo oggetto RegistrationService per fornire via RMI il servizio di registrazione a Word Quizzle.
      * @param usersGraph Struttura dati di Word Quizzle.
      */
-    public RegistrationService(UsersGraph usersGraph) {
+    public RegistrationService(UsersGraph usersGraph, ExecutorService diskOperator) {
         this.usersGraph = usersGraph;
+        this.diskOperator = diskOperator;
     }
 
     /**
@@ -35,31 +39,19 @@ public class RegistrationService extends RemoteServer implements IRegistrationSe
         }
 
         // creo l'utente.
-        User user = new User(nickname, password, clientPath);
-        // creo la cerchia di amici dell'utente (al momento della registrazione 0 amici).
-        Clique clique = new Clique(user);
-
-        // serializzo le informazioni dell'utente su un suo file dedicato.
-        try (FileOutputStream fileOutput = new FileOutputStream(user.getUserInfoPath());
-             BufferedOutputStream bufferedOutput = new BufferedOutputStream(fileOutput);
-             OutputStreamWriter streamWriter = new OutputStreamWriter(bufferedOutput)
-            ) {
-            usersGraph.getGson().toJson(user, streamWriter);
-
-            // creo il file che andrà a contenere le informazioni delle amicizie dell'utente (inizialmente vuoto).
-            File friendlistFile = new File(user.getUserFriendlistPath());
-            friendlistFile.createNewFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-
-            // restituisco messaggio di errore generale per l'operazione di registrazione.
-            return ResponseMessages.REGISTRATION_ERROR.toString();
-        }
+        Clique user = new Clique(nickname, password, clientPath);
 
         // inserisco la cerchia di amicizie.
-        usersGraph.insertClique(nickname, clique);
+        if (usersGraph.insertClique(nickname, user) != null) {
+            // un'altro client nel frattempo si era registrato con lo stesso nickname.
+            return ResponseMessages.USER_ALREADY_REGISTERED.toString();
+        }
 
-        assert usersGraph.getClique(nickname) != null;
+        // serializzo le informazioni dell'utente su un suo file dedicato.
+            Runnable writeInfoTask = new WriteUserInfoTask(new Clique(nickname, user.getHash(),
+                    0, 0, 0, 0),
+                    user.getUserInfoPath());
+        diskOperator.execute(writeInfoTask);
 
         // restituisco messaggio positivo di avvenuta registrazione.
         return ResponseMessages.USER_REGISTERED.toString();

@@ -11,6 +11,7 @@ public class UserExclusionStrategy implements ExclusionStrategy {
                         fieldAttributes.getName().equals("friendlistPath") ||
                         fieldAttributes.getName().equals("online")
                 )
+
         );
     }
 
