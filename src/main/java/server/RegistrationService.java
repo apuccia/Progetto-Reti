@@ -7,16 +7,17 @@ import java.rmi.server.RemoteServer;
 import java.util.concurrent.ExecutorService;
 
 public class RegistrationService extends RemoteServer implements IRegistrationService {
-    private final UsersGraph usersGraph; // struttura dati contenente le informazioni degli utenti di Word Quizzle + informazioni di supporto.
-    private final ExecutorService diskOperator;
+    private final UsersGraph usersGraph;            // struttura dati contenente le informazioni degli utenti di
+                                                    //      Word Quizzle + informazioni di supporto.
+    private final WorkersThreadpool workersThreadpool;
 
     /**
      * Costruisce un nuovo oggetto RegistrationService per fornire via RMI il servizio di registrazione a Word Quizzle.
      * @param usersGraph Struttura dati di Word Quizzle.
      */
-    public RegistrationService(UsersGraph usersGraph, ExecutorService diskOperator) {
+    public RegistrationService(UsersGraph usersGraph, WorkersThreadpool workersThreadpool) {
         this.usersGraph = usersGraph;
-        this.diskOperator = diskOperator;
+        this.workersThreadpool = workersThreadpool;
     }
 
     /**
@@ -29,12 +30,12 @@ public class RegistrationService extends RemoteServer implements IRegistrationSe
         assert nickname != null : "nickname nullo";
         assert password != null : "password nulla";
 
-        String clientPath = usersGraph.MAIN_PATH + "/client_" + nickname;
+        String clientPath = usersGraph.MAIN_PATH + "/" + nickname;
         File userDirectory = new File(clientPath);
 
         // verifico che l'utente non si sia già registrato precedentemente a Word Quizzle.
-        if (!userDirectory.mkdir()) {
-            // restituisco messaggio di errore specifico.
+        if (!userDirectory.mkdirs()) {
+            // restituisco messaggio di errore.
             return ResponseMessages.USER_ALREADY_REGISTERED.toString();
         }
 
@@ -47,11 +48,9 @@ public class RegistrationService extends RemoteServer implements IRegistrationSe
             return ResponseMessages.USER_ALREADY_REGISTERED.toString();
         }
 
-        // serializzo le informazioni dell'utente su un suo file dedicato.
-            Runnable writeInfoTask = new WriteUserInfoTask(new Clique(nickname, user.getHash(),
-                    0, 0, 0, 0),
-                    user.getUserInfoPath());
-        diskOperator.execute(writeInfoTask);
+        workersThreadpool.executeWriteUserInfoTask(new Clique(nickname, user.getHash(),
+                        0, 0, 0, 0),
+                user.getUserInfoPath());
 
         // restituisco messaggio positivo di avvenuta registrazione.
         return ResponseMessages.USER_REGISTERED.toString();

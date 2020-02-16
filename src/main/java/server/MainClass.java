@@ -5,102 +5,119 @@ import server.clienttasks.TaskAcceptor;
 
 import java.io.*;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainClass {
     private final static int PORT = 8888;
+    private final static int RMI_PORT = 6789;
 
     public static void main(String[] args) {
-        ServerSocketChannel serverChannel = null;
-        Selector serverSelector = null;
+        PrintWriter serverWriter = new PrintWriter(System.out, true);
         UsersGraph usersGraph = new UsersGraph();
-
         ArrayList<String> italianWords = new ArrayList<>();
-        ConcurrentHashMap<String, String> translatedWords = new ConcurrentHashMap<>();
 
         File file = new File(UsersGraph.MAIN_PATH);
         String clients[] = file.list();
+        long start;
 
+        // carico gli utenti di Word Quizzle.
+        if (clients != null) {
+            start = System.currentTimeMillis();
+            for (String client : clients) {
+                String userInfoPath = UsersGraph.MAIN_PATH + "/" + client + "/UserInfo.json";
+                String userFriendlistPath = UsersGraph.MAIN_PATH + "/" + client + "/UserFriendlist.json";
 
-        for (String client : clients) {
-            String userInfoPath = UsersGraph.MAIN_PATH + "/" + client + "UserInfo.json";
-            String userFriendlistPath = UsersGraph.MAIN_PATH + "/" + client + "UserFriendlist.json";
+                try (FileInputStream fileInput = new FileInputStream(userInfoPath);
+                     BufferedInputStream bufferedInput = new BufferedInputStream(fileInput);
+                     InputStreamReader streamReader = new InputStreamReader(bufferedInput)) {
 
-            try (FileInputStream fileInput = new FileInputStream(userInfoPath);
-                 BufferedInputStream bufferedInput = new BufferedInputStream(fileInput);
-                 InputStreamReader streamReader = new InputStreamReader(bufferedInput)) {
+                    Clique userClique = UsersGraph.GSON.fromJson(streamReader, Clique.class);
+                    userClique.setUserInfoPath(userInfoPath);
+                    userClique.setUserFriendlistPath(userFriendlistPath);
 
-                Clique userClique = (Clique) UsersGraph.GSON.fromJson(streamReader, Clique.class);
-                userClique.setUserInfoPath(userInfoPath);
-                userClique.setUserFriendlistPath(userFriendlistPath);
-                userClique.setClientKey(null);
-
-                userClique.getPlayerInfo().setOnline(false);
-                usersGraph.insertClique(client, userClique);
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        for (String client : clients) {
-            Clique userClique = usersGraph.getClique(client);
-
-            try (FileReader fileReader = new FileReader(userClique.getUserFriendlistPath());
-                 JsonReader jsonReader = new JsonReader(fileReader)) {
-
-                jsonReader.beginArray();
-                while (jsonReader.hasNext()) {
-                    jsonReader.beginObject();
-                        String friendName = jsonReader.nextString();
-                    jsonReader.endObject();
-
-                    userClique.insertFriend(usersGraph.getClique(friendName).getPlayerInfo());
+                    userClique.getPlayerInfo().setGaming(false);
+                    usersGraph.insertClique(client, userClique);
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-
-            } catch (IOException e) {
-                e.printStackTrace();
             }
+
+            serverWriter.println("UTENTI CARICATI, tempo impiegato: " + (System.currentTimeMillis() - start));
+
+            // carico le amicizie degli utenti.
+            start = System.currentTimeMillis();
+            for (String client : clients) {
+                Clique userClique = usersGraph.getClique(client);
+
+                try (FileReader fileReader = new FileReader(userClique.getUserFriendlistPath());
+                     JsonReader jsonReader = new JsonReader(fileReader)) {
+
+                    jsonReader.beginArray();
+                    while (jsonReader.hasNext()) {
+                        String friendName = jsonReader.nextString();
+
+                        userClique.insertFriend(usersGraph.getClique(friendName).getPlayerInfo());
+                    }
+
+                } catch (IOException e) {
+                    // l'utente non ha amicizie, il file che le contiene viene creato solamente alla prima aggiunta
+                    // di un amico.
+                    e.printStackTrace();
+                }
+            }
+            serverWriter.println("AMICIZIE CARICATE, tempo impiegato: " + (System.currentTimeMillis() - start));
         }
 
+        // carico le parole italiane da utilizzare durante le sfide.
+        start = System.currentTimeMillis();
         try (FileReader fileReader = new FileReader("Words.json");
              JsonReader jsonReader = new JsonReader(fileReader)) {
 
             jsonReader.beginArray();
             while (jsonReader.hasNext()) {
-                jsonReader.beginObject();
                 String word = jsonReader.nextString();
-                jsonReader.endObject();
 
                 italianWords.add(word);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        // si occupa di interagire con il disco per la scrittura e lettura dei file json
-        ExecutorService diskOperator = Executors.newSingleThreadExecutor();
+        serverWriter.println("PAROLE CARICATE, tempo impiegato: " + (System.currentTimeMillis() - start));
 
         // threadpool che si occuperà della lettura delle richieste.
-        ExecutorService acceptorsOperator = Executors.newFixedThreadPool(2);
+        ExecutorService acceptorOperator = Executors.newSingleThreadExecutor();
+        WorkersThreadpool workersThreadpool = new WorkersThreadpool(usersGraph, italianWords);
 
-        // threadpool che si occuperà di svolgere le richieste.
-        ExecutorService workersOperator = Executors.newFixedThreadPool(2);
+        // inizializzazione rmi.
+        RegistrationService registrationService = new RegistrationService(usersGraph, workersThreadpool);
+        IRegistrationService stub = null;
+        try {
+            stub = (IRegistrationService)
+                    UnicastRemoteObject.exportObject(registrationService, 0);
+            LocateRegistry.createRegistry(RMI_PORT);
+            Registry registry = LocateRegistry.getRegistry(RMI_PORT);
+            registry.rebind("REGISTRATION-SERVICE", stub);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
 
-        // threadpool che si occuperà di rispondere ai client.
-        ExecutorService answerersOperator = Executors.newFixedThreadPool(3);
-
-        WorkersThreadpool workersThreadpool = new WorkersThreadpool(usersGraph, workersOperator, diskOperator,
-                answerersOperator, italianWords);
+        // inizializzazione del selettore.
+        ServerSocketChannel serverChannel = null;
+        Selector serverSelector = null;
 
         try {
             serverChannel = ServerSocketChannel.open();
@@ -112,14 +129,13 @@ public class MainClass {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
+        serverWriter.println("SERVER PRONTO");
         while (true) {
             try {
                 serverSelector.select();
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
             Set<SelectionKey> selectedKeys = serverSelector.selectedKeys();
             Iterator<SelectionKey> keysIterator = selectedKeys.iterator();
 
@@ -129,18 +145,45 @@ public class MainClass {
 
                 if (key.isAcceptable()) {
                     // nuova richiesta di connessione.
+                    System.out.println("NUOVA RICHIESTA DI CONNESSIONE");
                     try {
                         SocketChannel client = serverChannel.accept();
                         client.configureBlocking(false);
-                        client.register(serverSelector, SelectionKey.OP_READ);
+
+                        client.register(serverSelector, SelectionKey.OP_READ, ByteBuffer.allocate(1024));
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
                 else if (key.isReadable()) {
                     // nuova richiesta servizio di Word Quizzle.
-                    key.interestOps(0);
-                    acceptorsOperator.execute(new TaskAcceptor(workersThreadpool, key));
+                    int bytesRead = -1;
+                    StringBuilder request = new StringBuilder();
+                    SocketChannel clientChannel = (SocketChannel) key.channel();
+                    ByteBuffer buffer = (ByteBuffer) key.attachment();
+
+                    try {
+                        while ((bytesRead = clientChannel.read(buffer)) > 0) {
+                            buffer.flip();
+                            request.append(new String(buffer.array(), 0, bytesRead, StandardCharsets.UTF_8));
+                            buffer.clear();
+                        }
+                    }
+                    catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    if (bytesRead == -1) {
+                        System.out.println("DISCONNESSIONE DA WORD QUIZZLE");
+                        key.cancel();
+                        acceptorOperator.execute(new TaskAcceptor(workersThreadpool,
+                                RequestMessages.LOGOUT_DISCONNECT.toString(), key));
+                        continue;
+                    }
+
+                    System.out.println("NUOVA RICHIESTA DI SERVIZIO");
+                    buffer.clear();
+                    System.out.println("-> " + request.toString());
+                    acceptorOperator.execute(new TaskAcceptor(workersThreadpool, request.toString(), key));
                 }
             }
         }

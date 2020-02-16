@@ -3,28 +3,43 @@ package server.clienttasks;
 import server.Clique;
 import server.ResponseMessages;
 import server.UsersGraph;
-import server.iotasks.SendSimpleResponse;
+import server.WorkersThreadpool;
 
-import java.util.concurrent.ExecutorService;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LogoutTask implements Runnable {
-    private final String nickname;
-    private final UsersGraph usersGraph;
-    private final ExecutorService answerersOperator;
+    private final String nickname;                        // nickname dell'utente.
+    private final UsersGraph usersGraph;                  // struttura dati degli utenti.
+    private final WorkersThreadpool workersThreadpool;    // threadpool che si occupa di inviare le risposte.
+    private final ConcurrentHashMap<String, InetSocketAddress> onlineUsers;
+    private final SelectionKey clientKey;
 
-    public LogoutTask(String nickname, UsersGraph usersGraph, ExecutorService answerersOperator) {
+    /**
+     * Costruisce un nuovo oggetto LogoutTask che si occupa di svolgere le operazioni relative al logout di un utente.
+     *
+     * @param nickname nickname dell'utente che vuole effettuare il logout.
+     * @param usersGraph struttura dati contenente gli utenti di Word Quizzle.
+     * @param workersThreadpool threadpool che si occupa di inviare le risposte ai client.
+     */
+    public LogoutTask(String nickname, UsersGraph usersGraph, WorkersThreadpool workersThreadpool,
+                      ConcurrentHashMap<String, InetSocketAddress> onlineUsers, SelectionKey clientKey) {
         this.nickname = nickname;
         this.usersGraph = usersGraph;
-        this.answerersOperator = answerersOperator;
+        this.onlineUsers = onlineUsers;
+        this.workersThreadpool = workersThreadpool;
+        this.clientKey = clientKey;
     }
 
     @Override
     public void run() {
-        Clique user = usersGraph.getClique(nickname);
+        onlineUsers.remove(nickname);
 
-        answerersOperator.execute(new SendSimpleResponse(ResponseMessages.USER_LOGOUTED.toString(), user.getClientKey()));
-
-        user.getPlayerInfo().setOnline(false);
-        user.setClientKey(null);
+        // task per spedire risposta di logout con successo.
+        workersThreadpool.executeSendSimpleResponseTask(ResponseMessages.USER_LOGOUTED.toString(), clientKey);
     }
 }

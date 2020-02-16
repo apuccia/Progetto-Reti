@@ -11,15 +11,14 @@ public class UsersGraph {
     // imposto le informazioni per la creazione dell'istanza di Gson.
     public static final Gson GSON = new GsonBuilder()
                                         .setPrettyPrinting()
-                                        .addSerializationExclusionStrategy(new UserExclusionStrategy())
                                         .create();
-    public static final String MAIN_PATH = "Progetto-Reti/clients"; // path della cartella contenente le informazioni dei client.
+    public static final String MAIN_PATH = "clients"; // path della cartella contenente le informazioni dei client.
 
     /**
      * Costruisce un nuovo oggetto UsersGraph che andrà a contenere tutte le informazioni degli utenti di Word Quizzle.
      */
     public UsersGraph() {
-        users = new ConcurrentHashMap<String, Clique>();
+        users = new ConcurrentHashMap<>();
     }
 
     /**

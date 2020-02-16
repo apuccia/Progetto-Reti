@@ -3,29 +3,40 @@ package server.clienttasks;
 import server.Clique;
 import server.Player;
 import server.UsersGraph;
-import server.iotasks.SendRanksTask;
+import server.WorkersThreadpool;
 
+import java.nio.channels.SelectionKey;
+import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Vector;
-import java.util.concurrent.ExecutorService;
 
 public class ShowRanksTask implements Runnable {
     private final UsersGraph usersGraph;
     private final String nickname;
-    private final ExecutorService answerersOperator;
+    private final WorkersThreadpool workersThreadpool;
+    private final SelectionKey clientKey;
 
-    public ShowRanksTask(String nickname, UsersGraph usersGraph, ExecutorService answerersOperator) {
+    /**
+     * Costruisce un nuovo oggetto ShowRanksTask che si occupa di "clonare" la classifica dell'utente e dei suoi amici.
+     *
+     * @param nickname nickname dell'utente.
+     * @param usersGraph struttura dati che contiene gli utenti di Word Quizzle.
+     * @param workersThreadpool oggetto che incapsula i principali worker di Word Quizzle.
+     * @param clientKey SelectionKey del client a cui inviare la risposta.
+     */
+    public ShowRanksTask(String nickname, UsersGraph usersGraph, WorkersThreadpool workersThreadpool,
+                         SelectionKey clientKey) {
         this.usersGraph = usersGraph;
         this.nickname = nickname;
-        this.answerersOperator = answerersOperator;
+        this.workersThreadpool = workersThreadpool;
+        this.clientKey = clientKey;
     }
-
 
     @Override
     public void run() {
-        Vector<Player> players = new Vector<>();
+        ArrayList<Player> players = new ArrayList<>();
+        Clique userClique = usersGraph.getClique(nickname);
 
-        Iterator friendsIterator = usersGraph.getClique(nickname).getFriends().values().iterator();
+        Iterator friendsIterator = userClique.getFriends().values().iterator();
 
         while (friendsIterator.hasNext()) {
             Player player = (Player) friendsIterator.next();
@@ -36,11 +47,10 @@ public class ShowRanksTask implements Runnable {
             player.readUnlockUser();
         }
 
-        Clique userClique = usersGraph.getClique(nickname);
         Player userPlayer = userClique.getPlayerInfo();
         players.add(new Player(userPlayer.getNickname(), userPlayer.getUserScore(), userPlayer.getWins(),
                 userPlayer.getLosses(), userPlayer.getRateo()));
 
-        answerersOperator.execute(new SendRanksTask((Player[]) players.toArray(), userClique.getClientKey()));
+        workersThreadpool.executeSendRanksTask(players.toArray(new Player[players.size()]), clientKey);
     }
 }

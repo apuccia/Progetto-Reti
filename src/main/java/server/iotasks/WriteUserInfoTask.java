@@ -9,9 +9,16 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 
 public class WriteUserInfoTask implements Runnable {
-    private final String userInfoPath;
-    private final Clique user;
+    private final String userInfoPath;  // path del file contenente le informazioni dell'utente.
+    private final Clique user;          // oggetto da serializzare nel file.
 
+    /**
+     * Costruisce un nuovo oggetto WriteUserInfoTask che andrà ad effettuare la scrittura delle informazioni di un utente
+     * su un file json.
+     *
+     * @param user oggetto da serializzare in json.
+     * @param userInfoPath path del file contenente le informazioni dell'utente.
+     */
     public WriteUserInfoTask(Clique user, String userInfoPath) {
         this.userInfoPath = userInfoPath;
         this.user = user;

@@ -6,7 +6,7 @@ utenti registrati al servizio.
 Gli utenti registrati possono sfidare i propri amici ad una gara il cui
 scopo è quello di tradurre in inglese il maggiore numero di parole italiane proposte dal servizio. Il sistema consente
 inoltre la gestione di una rete sociale tra gli utenti iscritti.  
-L’applicazione è implementata secondo una architettura client server.
+L’applicazione è implementata secondo una architettura clientGUI server.
 
 ## 2. WQ: specifica delle operazioni
 Di seguito sono specificate le operazioni offerte dal servizio WQ. In sede di implementazione è
@@ -97,7 +97,7 @@ corso. In particolare:
 * La fase di registrazione viene implementata mediante **RMI**.
 * La fase di login deve essere effettuata come prima operazione dopo aver instaurato una
 connessione TCP con il server. Su questa connessione **TCP**, dopo previa login
-effettuata con successo, avvengono le interazioni client- server (richieste/risposte).
+effettuata con successo, avvengono le interazioni clientGUI- server (richieste/risposte).
 * Il server inoltra la richiesta di sfida originata da *nickUtente* all'utente *nickAmico* usando la
 comunicazione **UDP**.
 * Il server può essere realizzato **multithreaded** oppure può effettuare il multiplexing dei
@@ -110,8 +110,8 @@ l’accettazione della sfida da parte dell’amico, il server chiede, tramite un
 **HTTP GET**, la traduzione delle parole selezionate al servizio esterno chiamato
 [My Memory](https://mymemory.translated.net/doc/spec.php).  
 Le traduzioni vengono memorizzate per tutta la durata della partita per verificare la correttezza delle risposte
-inviate dal client.
-* L'utente interagisce con WQ mediante un client che può utilizzare una semplice
+inviate dal clientGUI.
+* L'utente interagisce con WQ mediante un clientGUI che può utilizzare una semplice
 **interfaccia grafica**, oppure una **interfaccia a linea di comando**, definendo un insieme di
 comandi, presentati in un menu.
 * Il server persiste le informazioni di registrazione, relazioni di amicizia e punteggio degli
